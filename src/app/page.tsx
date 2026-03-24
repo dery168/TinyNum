@@ -241,6 +241,13 @@ export default function Home() {
                 <span className="pill warn">silent miss</span>
               </div>
             </div>
+
+            <p className="hint">
+              Powered by{" "}
+              <a href="https://services.tinynumber.com" target="_blank" rel="noreferrer">
+                services.tinynumber.com
+              </a>
+            </p>
           </aside>
         </div>
       </div>
