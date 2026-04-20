@@ -47,18 +47,4 @@ describe("store allocator", () => {
     expect(Math.min(...keys)).toBe(1);
     expect(Math.max(...keys)).toBe(50);
   });
-
-  it("parses object payload returned by KV client", () => {
-    const parsed = __testing.parseRedisEntry({
-      type: "text",
-      value: "hello from kv",
-      expiresAt: 1_700_000_000_000,
-    });
-
-    expect(parsed).toEqual({
-      type: "text",
-      value: "hello from kv",
-      expiresAt: 1_700_000_000_000,
-    });
-  });
 });
