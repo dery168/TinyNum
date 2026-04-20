@@ -1,5 +1,3 @@
-import { Redis } from "@upstash/redis";
-
 export type RateLimitAction = "create" | "retrieve";
 
 type RateLimitResult = {
@@ -24,17 +22,6 @@ const BUCKETS: Record<RateLimitAction, Bucket> = {
   },
 };
 
-const redisUrl = process.env.KV_REST_API_URL;
-const redisToken = process.env.KV_REST_API_TOKEN;
-const isRedisEnabled = Boolean(redisUrl && redisToken) && process.env.NODE_ENV !== "test";
-
-const redis = isRedisEnabled
-  ? new Redis({
-      url: redisUrl as string,
-      token: redisToken as string,
-    })
-  : null;
-
 let nowProvider: () => number = () => Date.now();
 const memoryBuckets = new Map<string, { count: number; resetAt: number }>();
 
@@ -44,38 +31,6 @@ function now() {
 
 function keyFor(ip: string, action: RateLimitAction) {
   return `tinynum:rl:${action}:${ip}`;
-}
-
-async function checkRedis(ip: string, action: RateLimitAction): Promise<RateLimitResult> {
-  const bucket = BUCKETS[action];
-  const key = keyFor(ip, action);
-
-  const script = `
-    local key = KEYS[1]
-    local max = tonumber(ARGV[1])
-    local windowSec = tonumber(ARGV[2])
-
-    local current = redis.call('INCR', key)
-    if current == 1 then
-      redis.call('EXPIRE', key, windowSec)
-    end
-
-    local ttl = redis.call('TTL', key)
-    if current > max then
-      return {0, 0, ttl}
-    end
-
-    return {1, max - current, ttl}
-  `;
-
-  const rawResult = await redis!.eval(script, [key], [bucket.max, bucket.windowSeconds]);
-  const result = (rawResult as number[]).map((value) => Number(value));
-
-  return {
-    ok: result[0] === 1,
-    remaining: Math.max(0, result[1]),
-    retryAfterSeconds: Math.max(0, result[2] ?? bucket.windowSeconds),
-  };
 }
 
 function checkMemory(ip: string, action: RateLimitAction): RateLimitResult {
@@ -114,10 +69,6 @@ export async function checkRateLimit(ip: string, action: RateLimitAction): Promi
       remaining: Number.MAX_SAFE_INTEGER,
       retryAfterSeconds: 0,
     };
-  }
-
-  if (redis) {
-    return checkRedis(ip, action);
   }
 
   return checkMemory(ip, action);
