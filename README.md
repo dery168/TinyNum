@@ -1,4 +1,4 @@
-# TinyNum
+# TinyNumber
 
 TinyNum is a Next.js app that lets users store public text or URLs and retrieve them later using a small integer key.
 
