@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useMemo, useState, useEffect } from "react";
 import "./page.css";
 
 type Mode = "create" | "retrieve";
@@ -22,15 +22,47 @@ export default function Home() {
   const [retrieveBusy, setRetrieveBusy] = useState(false);
   const [retrieved, setRetrieved] = useState<Retrieved | null>(null);
   const [retrieveState, setRetrieveState] = useState<"idle" | "missing" | "error">("idle");
+  const [retrievalTime, setRetrievalTime] = useState<number | null>(null);
+  const [countdown, setCountdown] = useState<number>(0);
+
+  useEffect(() => {
+    if (!retrieved || !retrievalTime) {
+      return;
+    }
+
+    // Set initial countdown
+    const elapsed = Date.now() - retrievalTime;
+    const remaining = Math.max(0, retrieved.expiresInMs - elapsed);
+    setCountdown(remaining);
+
+    // Set up interval to update countdown every second
+    const interval = setInterval(() => {
+      const elapsed = Date.now() - retrievalTime;
+      const remaining = Math.max(0, retrieved.expiresInMs - elapsed);
+      setCountdown(remaining);
+
+      // Stop interval when countdown reaches 0
+      if (remaining === 0) {
+        clearInterval(interval);
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [retrieved, retrievalTime]);
 
   const ttlText = useMemo(() => {
     if (!retrieved) {
       return "";
     }
 
-    const minutes = Math.max(0, Math.ceil(retrieved.expiresInMs / 60000));
-    return `${minutes} min left`;
-  }, [retrieved]);
+    const minutes = Math.max(0, Math.ceil(countdown / 60000));
+    const seconds = Math.max(0, Math.ceil((countdown % 60000) / 1000));
+    
+    if (minutes > 0) {
+      return `${minutes} min ${seconds} sec left`;
+    }
+    return `${seconds} sec left`;
+  }, [countdown, retrieved]);
 
   async function onCreate(e: FormEvent) {
     e.preventDefault();
@@ -95,6 +127,7 @@ export default function Home() {
 
       const result = (await response.json()) as Retrieved;
       setRetrieved(result);
+      setRetrievalTime(Date.now());
     } catch {
       setRetrieveState("error");
     } finally {
